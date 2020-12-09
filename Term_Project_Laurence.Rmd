@@ -1,0 +1,156 @@
+---
+title: "Term_Project (Laurence Cojocaru)"
+output:
+  word_document: default
+  html_document: default
+---
+```{r message=FALSE, warning=FALSE}
+library(ggplot2)
+library(car)
+library(MASS)
+```
+
+Abstract:
+
+Buying a vehicle can be a daunting task for an individual; especially if they do not possess an in depth understanding about all the variables that could affect the selling price. In this paper we look at data from CarDekho.com to ask the question how does: age of the vehicle, km driven, type of fuel, the type of seller the vehicle is being purchased from, the type of transmission, and the number of owners affects the selling price? What we found was: the age, km driven, and number of owners up until two has a negative correlation with selling price.  We also found that dealers and trustmark dealers often sold cars at higher rates than individuals. Finally we found that vehicles that use manual transmission sold for a lower price than automatic vehicles, and that vehicle’s that used diesel tended to be more expensive than vehicles that used other fuel types.  
+
+
+Introduction:
+
+Buying a car or motorcycle can be a big deal for an individual, especially if the individual does not know a lot about cars. There are a lot of variables to consider when looking to purchase a car or motorcycle, and each of these variables affects the price of the vehicle differently, so for a person who’s knowledge on cars or motorcycles may be limited it is hard for them to deduce if the price they are getting charged for that vehicle is ok or overpriced. In this paper we will perform a regression analysis of a dataset from CarDekho.com to ask the question how does: age of the vehicle, km driven, type of fuel, seller type, type of transmission, and number of owners affects the selling price of a vehicle? 
+ 
+
+Data Description:
+
+Initially the Dataset contained the following variables: name, year, “selling_price”, “km_driven”, fuel, “seller_type”, transmission, and owner. The variable name contained the name of the vehicle, and it was removed from our dataset as it was not needed for our current investigation. The variable year which contained the year the car was made; was also removed from our dataset, but it was replaced with a new unique variable called “age_of_veh”. This variable was calculated by taking the current year (2020) and subtracting the year the car was made from it. This variable was added because we felt like knowing how the age of a vehicle affected its selling price was more important than knowing how the year it was made would affect its price.  We also felt like this new variable would be easier for individuals who might not know a lot about cars and motorcycles to understand. The variable “selling_price” contains the price the vehicle is being sold for. The variable “km_driven” contains the amount of kilometric the car has been driven. We slightly modified this variable by making every 1km = 1000km we did this as we felt like it was easier to read. The variable fuel informs us what type of fuel the vehicle uses; it is broken down into 5 different types of fuels: CNG, Diesel, electric, LPG and petrol.  The variable “seller_type” informs us how the vehicle is being sold; it is divided into: dealer, individual and trustmark dealer. The variable transmission tells us what transmission the vehicle has, and it is subdivided into: automatic and manual. Finally the variable owner shows us how many people have driven the vehicle: 1, 2, 3, 4+ or whether the vehicle was used for test drives.  
+```{r}
+CarData <- read.csv("CAR DETAILS FROM CAR DEKHO.csv")
+
+
+CarData <- subset(CarData, select = -c(name))
+CarData$age_of_veh <- 2020 - CarData$year
+CarData <- subset(CarData, select = -c(year))
+CarData$km_driven <- CarData$km_driven/1000
+
+summary(CarData)
+```
+From the figure above we can see that the average selling price is roughly $500,000, and the average distances the vehicles have been driven is about 66,000km. We can also see that the most common type of fuel is diesel, but petrol is not far away. This figure also shows us the individuals sell the majority of vehicles, and that most vehicles are: manual, and only owned by 1 person, with an average age of close to 7 years.      
+
+```{r warning=FALSE}
+ggplot(CarData, aes(age_of_veh, selling_price, color = owner, shape = seller_type,)) + geom_point() + ggtitle("Age VS Selling Price subdived by Owner and Seller Type")
+```
+From this graph we can easily make out two patterns. The first being that age has a negative correlation with selling price, and second that as the number of owners increases the price of the vehicle tends to decrease. This graph also lets us see that the 3 most expensive vehicles are dealer sold and have only had one owner
+
+```{r warning=FALSE}
+ggplot(CarData, aes(km_driven, selling_price, color = transmission)) + geom_point() + ggtitle("KM VS selling Price subdived by Transmission")
+```
+From this graph we can also make out two patterns. The first is the negative correlation between selling price and km driven, and the second is that automatic vehicles have a much higher selling price than manual vehicles do.
+
+```{r}
+ggplot(CarData, aes(fuel, selling_price)) + geom_point() + ggtitle("Fuel VS Selling Price")
+```
+Our last graph shows us that vehicles fuelled with CGN, Electric, and LGP don’t have high selling prices; however vehicles fuelled with petrol and diesel tend to have wide ranging selling prices, with diesel being a little more expensive on average than petrol. 
+
+
+Methods:
+
+The first step we took was running a simple regression model on all our variables of interest. In order to construct this regression model we constrained R to use the levels with the highest number of observations as its reference instead of letting R just select the first level by default. We did this primarily because of the fuel variable. We did not feel that selecting the first level was the best idea as there are not many observations in that level so the model might not do a good job comparing between the different levels. Since we did this for fuel we felt that it was important to be consistent and do it for the other categorical variables as well. Once the model was constructed we took a look at its coefficients and its ANOVA table. Following this step we run a plot function on the regression model to gain access to the residuals vs fit line and the normal Q-Q plot. We then started to look for problematic data points and possible outliers. We did this by plotted a leverage plot and an influence plot, and running an outlier test; once all the problematic points were found we created a copy of the main dataset without these points. We then ran another simple regression model on our new dataset to see what would happen once the outliers and problematic points were removed. We again ran the summery of this new model, as well as plotted its residuals vs fit line and normal Q-Q plot to see what had changed. After that we once more searched for outliers and problematic points the same way as we did before, and again created a new data set with them removed. We ran one last simple regression model on this new data set, and plotted the residuals vs fit line and normal Q-Q plot, however we saw no real change here so we did not go any further after this. After we finished with the simple regression models we decided to run a robust regression model with Huber’s psi function on the original dataset, just to see if this model would be any better. We concluded by calculating the MSPE for all four of our constructed models, and comparing them to see what model did the best job in predicting.    
+
+
+Results:
+
+```{r}
+contrasts(CarData$fuel) <- contr.treatment(5, base = 2)
+contrasts(CarData$transmission) <- contr.treatment(2, base = 2)
+contrasts(CarData$seller_type) <- contr.treatment(3, base = 2)
+LM <- lm(selling_price~., CarData)
+summary(LM)
+```
+Above is the summary of the simple linear model on the whole data set. The first thing we can see is that the adj R^2 is 0.4576, this is not the best, but also not the worst. The second thing we can see from this is that given all the variables are in the model, all but: “ownerFourth & Above owner”,  “ownerTest Drive Car”, and “ownerThird owner” has a significant effect on the model.
+
+```{r}
+anova(LM)
+```
+The ANOVA table shows us that all the variables in this dataset are important in predicting the selling price. The rest of the ANOVA tables showed the same results so they will not be included in the results.
+
+```{r}
+plot(LM, which = 1)
+```
+The residual plot for the simple regression model on the complete data set doses show that the data could be modeled well by a linear model. As there are no real patterns in this plot, and the points do seem to be well scattered. This plot also dose show 3 points of interest: 90, 3970, and 3873.  
+
+```{r warning=FALSE}
+outlierTest(LM)
+```
+The outlier test reviled ten possible outliers, three of which were the points of interest from the residual plot. All ten points were removed from the data set
+
+```{r}
+DatanoOut <- CarData[-c(3873,90,3970,556,575,594,613,901,920,1024,1244),]
+contrasts(DatanoOut$fuel) <- contr.treatment(5, base = 2)
+contrasts(DatanoOut$transmission) <- contr.treatment(2, base = 2)
+contrasts(DatanoOut$seller_type) <- contr.treatment(3, base = 2)
+LM.noOut <- lm(selling_price~., DatanoOut)
+summary(LM.noOut)
+```
+The summary for the new regression model that was constructed once the outliers were removed shows us that removing the outliers increased the adj R^2 of the data to 0.4866, as well as made “ownerTest Drive Car” relevant to the model.
+
+```{r}
+plot(LM.noOut, which = 1)
+```
+From this new residual plot we can see that removing the outliers, definitely improved the fit of the linear model, as the points are even more scattered, and uniform than before.
+
+```{r}
+robLM <- rlm(selling_price~., CarData, psi = psi.huber)
+summary(robLM)
+```
+The summary of the robust residual model seems to match pretty close with the summaries of the other two models. 
+
+The results of the third linear model that was done on the data which had two sets of outliers removed will not be shown in the results as the results don’t differ much from the results of the second model
+
+```{r message=FALSE, warning=FALSE}
+pred.LM <- predict(LM, newdata = CarData)
+pred.LM.noOut <- predict(LM.noOut, newdata = DatanoOut)
+pred.LM.RobLM <- predict(robLM, newdata = CarData)
+
+(MSPE.1 = mean((CarData[,"selling_price"] - pred.LM)^2))
+(MSPE.2 = mean((DatanoOut[,"selling_price"] - pred.LM.noOut)^2))
+(MSPE.4 = mean((CarData[,"selling_price"] - pred.LM.RobLM)^2))
+```
+To check the strength of our prediction models we calculated the MSPE of all four of our models (the third regression model with be in the appendix) as it did not change drastically from that of the second regression model. We can see that the second regression model has the lowest MSPE of the three models shown
+
+
+Discussion/Conclusion:
+
+From the results of the ANOVA table we can see that all the variables are important to the in modeling this data. The means that:  km driven, type of fuel, seller type, type of transmission, and number of owners, as well as age of the vehicle do play a role in the selling price of said vehicle. From all three of summary reports for the models run we can see that km driven, and age of the vehicle have a negative correlation with the selling price given that all the other variables are in the model. We can also see that fuel types: 1,3,4,5 (CNG, Electric LPG, and petrol respectively) reduce the selling price of the vehicle when compared to diesel given all other variables are in the model. An interesting finding from the summary reports of the models is that if the vehicle has had two owners the price will decrease when compared to a vehicle with only one owner; however if the car was a test drive car then the price of that vehicle will increase when compared to a vehicle with only one owner. Also having three or more owners does not meaningfully affect the selling price of that vehicle. The last finding from the summary reports is that a vehicle sold by seller types 1 and 3 (deal, and trustmark dealer) were sold at higher prices than vehicles sold by individuals.
+
+Our MSPE tests showed that the third regression model (see appendix) had the best MSPE of all four models tested; however it was not much better than that of the second regression model run, and due to the fact that the second regression model is simpler and simpler models tend to be better we have chosen that model to be our prediction model if predictions need to be made. Future studies could be done to determine if this model is the best at predicting sells price or if other models like a GAM model could do a better job.   
+
+
+Appendix:
+
+Code that was also run on our data set, but results of which are not shown in the results section. This part is added for reproducibility
+```{r warning=FALSE}
+
+#plot(LM)
+
+#leveragePlots(LM)
+#influencePlot(LM, main="Influence Plot", sub="Circle size is proportial to Cook's Distance" )
+
+
+
+#anova(LM.noOut)
+
+#plot(LM.noOut)
+#outlierTest(LM.noOut)
+
+
+
+#DatanoOut.2 <- DatanoOut[-c(1837,2240,2259,2740,3454,102,2581,3884,540,2179),]
+#LM.noOut.2 <- lm(selling_price~., DatanoOut.2)
+#summary(LM.noOut.2)
+#plot(LM.noOut.2)
+
+
+
+#pred.LM.noOut.2 <- predict(LM.noOut.2, newdata = DatanoOut.2)
+#(MSPE.3 = mean((DatanoOut.2[,"selling_price"] - pred.LM.noOut.2)^2))
+```
